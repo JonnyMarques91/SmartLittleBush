@@ -8,6 +8,17 @@
 #define TC_Handler  TC0_Handler
 #define TC_IRQn     TC0_IRQn
 
+/* Máscaras PIO */
+
+/* Protótipos de Sub-Rotinas e Funções */
+void presence_cfg();
+void presence_interrupt();
+
+/* Declaração de variáveis Globais */
+
+
+uint16_t uCNTseg = 0;	//Contador - 1 Segundo
+
 /**
  *  Configure Timer Counter 0 to generate an interrupt every ...
  */
@@ -29,7 +40,7 @@ static void tc_config(uint32_t freq_desejada)
 	tc_write_rc(TC, CHANNEL, counts);
 
 	NVIC_ClearPendingIRQ(TC_IRQn);
-	NVIC_SetPriority(TC_IRQn, 4);
+	NVIC_SetPriority(TC_IRQn, 15);
 	NVIC_EnableIRQ(TC_IRQn);
 	
 	// Enable interrupts for this TC, and start the TC.
@@ -42,17 +53,54 @@ static void tc_config(uint32_t freq_desejada)
 /* Rotina de Interrupção - TC */
 void TC_Handler(void)
 {
+//	uCNTseg++;
 	tc_get_status(TC,CHANNEL);
-	LED_Toggle(LED0_GPIO);
+	LED_Off(LED0_GPIO);
+// 	if (uCNTseg>2)
+// 	{
+// 		uCNTseg = 0;
+// 		pio_set_pin_low(LED0_GPIO);
+// 		LED_Toggle(LED0_GPIO);
+// 	}
+	
 }
 
 int main (void)
 {
-	/* Insert system clock initialization code here (sysclk_init()). */
-
+	/* Chamada de rotinas de inicialização */
+	sysclk_init();
 	board_init();
+	presence_cfg();
 
 	/* Insert application code here, after the board has been initialized. */
-	/* Gera Interrupção após T (ms) */
-	tc_config(10);
+	/* Gera Interrupção após T (s) */
+//	tc_config(1);
+	
+	while(1)
+	{
+		
+	}
+}
+
+/* Configuração da Interrupção - Sensor de Presença */
+void presence_cfg()
+{
+	pio_set_input(PIOB, PIO_PB3, PIO_PULLUP | PIO_DEBOUNCE);
+	pio_handler_set(PIOB, ID_PIOB, PIO_PB3, PIO_IT_RISE_EDGE, presence_interrupt);
+	pio_enable_interrupt(PIOB, PIO_PB3);
+
+	NVIC_SetPriority (PIOB_IRQn,14);
+	NVIC_EnableIRQ(PIOB_IRQn);
+}
+
+/* Ação - Interrupção do Sensor de Presença */
+/*
+	- Deve chamar rotinas de leitura de TODOS os sensores;
+	- Enviar dados via Bluetooth para o celular do usuário;
+*/
+void presence_interrupt()
+{
+//	LED_Toggle(LED0_GPIO);	
+	LED_On(LED0_GPIO);
+	tc_config(0.1);
 }
